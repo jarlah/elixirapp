@@ -27,24 +27,31 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
         Mix.shell().info("Program start")
 
         # Either monad! xD
+        # similar to for comprehension in scala
         response =
           with {:ok, region_id} <- safe_parse_integer(region_id_str),
                {:ok, orders} <-
                  get_market_orders(datasource, region_id, order_type, @default_page),
                type_ids <- get_unique_type_ids(orders),
-               {:ok, objects} <- get_universe_objects_by_type_ids(datasource, type_ids),
-               sorted_object_names <- get_sorted_object_names(objects) do
+               {:ok, objects} <- get_universe_objects_by_type_ids(datasource, type_ids) do
+            {:ok,
+             Enum.map(objects, fn n -> n["name"] end)
+             # is this optimal? With 1000 records its not problem, but with 1mill it might be
+             # sort first or distinct first? hmmm
+             |> Enum.uniq()
+             |> Enum.sort()}
+          end
+
+        case response do
+          {:ok, sorted_object_names} ->
             Enum.each(sorted_object_names, fn o -> Mix.shell().info(o) end)
 
             Mix.shell().info(
               "Found " <> to_string(length(sorted_object_names)) <> " unique object names"
             )
-          end
 
-        case response do
-          :ok -> Mix.shell().info("OK")
-          {:error, message} -> Mix.shell().error("Error occured: " <> message)
-          other -> Mix.shell().warning("Unknown result: " <> other)
+          {:error, message} ->
+            Mix.shell().error("Error occured: " <> inspect(message))
         end
 
         Mix.shell().info("Program end")
@@ -72,16 +79,7 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
     |> Enum.uniq()
   end
 
-  @spec get_sorted_object_names(list(map())) :: list(String.t())
-  def get_sorted_object_names(objects) do
-    Enum.map(objects, fn n -> n["name"] end)
-    # is this optimal? With 1000 records its not problem, but with 1mill it might be
-    # sort first or distinct first? hmmm
-    |> Enum.uniq()
-    |> Enum.sort()
-  end
-
-  @spec get_market_orders(datasource(), region_id(), order_type(), integer()) ::
+  @spec get_market_orders(datasource(), region_id(), order_type(), page()) ::
           {:error, String.t()} | {:ok, list(map())}
   def get_market_orders(datasource, region_id, order_type, page) do
     url =
