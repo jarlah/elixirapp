@@ -118,7 +118,7 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
   @spec get_universe_objects_by_type_ids(datasource(), list(integer())) ::
           {:error, String.t()} | {:ok, list(map())}
   def get_universe_objects_by_type_ids(datasource, type_ids) do
-    url = Enum.join([@base_url, "universe/namess/?datasource=" <> datasource], "/")
+    url = Enum.join([@base_url, "universe/names/?datasource=" <> datasource], "/")
 
     case HTTPoison.post(url, Poison.encode!(type_ids), [{"Content-type", "application/json"}], []) do
       {:ok, %{status_code: 200, body: market_response_body}} ->
