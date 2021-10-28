@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.EveOnline.GetUniverseNames do
+defmodule Mix.Tasks.EveOnline.GetObjectNames do
   use Mix.Task
 
   @base_url :"https://esi.evetech.net/latest"
