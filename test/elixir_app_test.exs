@@ -2,7 +2,7 @@ defmodule ElixirAppTest do
   use ExUnit.Case
   doctest ElixirApp
 
-  test "greets the world" do
-    assert ElixirApp.hello() == :world
+  test "ok" do
+    assert ElixirApp.ok() == :ok
   end
 end

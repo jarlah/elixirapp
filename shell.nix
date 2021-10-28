@@ -1,3 +1,6 @@
+let
+  unstable = import (fetchTarball https://nixos.org/channels/nixos-unstable/nixexprs.tar.xz) { };
+in
 with import <nixpkgs> {};
 let
   # define packages to install with special handling for OSX
@@ -10,7 +13,7 @@ let
     libxml2
     curl
     libiconv
-    elixir_1_9
+    unstable.elixir
     glibcLocales
     nodejs-12_x
     yarn
