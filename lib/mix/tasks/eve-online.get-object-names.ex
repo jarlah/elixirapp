@@ -25,7 +25,7 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
           with {:ok, orders} <-
                  get_market_orders(datasource, region_id, order_type, @default_page),
                type_ids <- get_unique_type_ids(orders),
-               {:ok, objects} <- get_universe_names(datasource, type_ids),
+               {:ok, objects} <- get_universe_objects_by_type_ids(datasource, type_ids),
                sorted_object_names <- get_sorted_object_names(objects) do
             Enum.each(sorted_object_names, fn o -> Mix.shell().info(o) end)
 
@@ -93,7 +93,7 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
     end
   end
 
-  def get_universe_names(datasource, type_ids) do
+  def get_universe_objects_by_type_ids(datasource, type_ids) do
     url = Enum.join([@base_url, "universe/names/?datasource=" <> datasource], "/")
 
     case HTTPoison.post(url, Poison.encode!(type_ids), [{"Content-type", "application/json"}], []) do
