@@ -28,8 +28,12 @@ defmodule Mix.Tasks.EveOnline.GetUniverseNames do
 
   def get_market_orders(datasource, market_id, order_type, page) do
     url =
+      "orders/?datasource=" <>
+        datasource <> "&" <> "order_type=" <> order_type <> "&" <> "page=" <> to_string(page)
+
+    url =
       Enum.join(
-        [@base_url, "markets", market_id, make_market_orders_url(datasource, order_type, page)],
+        [@base_url, "markets", market_id, url],
         "/"
       )
 
@@ -37,8 +41,12 @@ defmodule Mix.Tasks.EveOnline.GetUniverseNames do
       {:ok, %{status_code: 200, body: market_response_body}} ->
         Poison.decode(market_response_body)
 
-      {:ok, %{status_code: other}} ->
-        Mix.shell().error("Error contacting market endpoint: HTTP CODE " <> to_string(other))
+      {:ok, %{status_code: other, body: body}} ->
+        Mix.shell().error(
+          "Error contacting market endpoint: HTTP CODE " <>
+            to_string(other) <> " -> " <> inspect(body)
+        )
+
         :error
 
       {:error, %HTTPoison.Error{:__exception__ => true, :id => nil, :reason => message}} ->
@@ -47,14 +55,11 @@ defmodule Mix.Tasks.EveOnline.GetUniverseNames do
     end
   end
 
-  def make_market_orders_url(datasource, order_type, page) do
-    "orders/?datasource=" <>
-      datasource <> "&" <> "order_type=" <> order_type <> "&" <> "page=" <> to_string(page)
-  end
-
   def get_universe_names(market_orders) do
     type_ids = Enum.uniq(Enum.map(market_orders, fn order -> order["type_id"] end))
+
     body = Poison.encode!(type_ids)
+
     url = Enum.join([@base_url, "universe/names/?datasource=tranquility"], "/")
 
     case HTTPoison.post(url, body, [{"Content-type", "application/json"}], []) do
