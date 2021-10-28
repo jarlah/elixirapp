@@ -22,6 +22,7 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
         Mix.shell().info("Program start")
 
         response =
+          # Either monad! xD
           with {:ok, orders} <-
                  get_market_orders(datasource, region_id, order_type, @default_page),
                type_ids <- get_unique_type_ids(orders),
