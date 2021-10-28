@@ -3,37 +3,75 @@ defmodule Mix.Tasks.EveOnline.GetUniverseNames do
 
   @base_url :"https://esi.evetech.net/latest"
 
-  @market_id 10_000_002
-
-  @order_type "all"
-
-  @starting_page 1
-
-  @datasource "tranquility"
+  # Can i change this task to fetch all? Collect all pages?
+  # i dont think I should do it because HTTPoison fetches the complete json
+  # and it would take up too much memory.
+  # Out of Scope
+  @default_page 1
 
   @impl Mix.Task
-  def run(_) do
-    Application.ensure_all_started(:hackney)
+  def run(args) do
+    case args do
+      [
+        "datasource" <> "=" <> datasource,
+        "region_id" <> "=" <> region_id,
+        "order_type" <> "=" <> order_type
+      ] ->
+        Application.ensure_all_started(:hackney)
 
-    Mix.shell().info("Program start")
+        Mix.shell().info("Program start")
 
-    with {:ok, market} <- get_market_orders(@datasource, @market_id, @order_type, @starting_page),
-         {:ok, names} <- get_universe_names(market) do
-      names = Enum.uniq(Enum.map(names, fn n -> n["name"] end))
-      Mix.shell().info("Names: " <> inspect(names))
+        response =
+          with {:ok, orders} <-
+                 get_market_orders(datasource, region_id, order_type, @default_page),
+               type_ids <- get_unique_type_ids(orders),
+               {:ok, objects} <- get_universe_names(datasource, type_ids),
+               sorted_object_names <- get_sorted_object_names(objects) do
+            Enum.each(sorted_object_names, fn o -> Mix.shell().info(o) end)
+
+            Mix.shell().info(
+              "Found " <> to_string(length(sorted_object_names)) <> " unique object names"
+            )
+          end
+
+        Mix.shell().info("Result: " <> inspect(response))
+
+        Mix.shell().info("Program end")
+
+      other ->
+        Mix.shell().error(
+          "Usage: mix <task> datasource=your_datasource region_id=your_region_id order_type=your_order_type \n" <>
+            "Provided: " <> inspect(other)
+        )
     end
-
-    Mix.shell().info("Program end")
   end
 
-  def get_market_orders(datasource, market_id, order_type, page) do
+  def get_unique_type_ids(orders) do
+    Enum.map(orders, fn order -> order["type_id"] end)
+    |> Enum.uniq()
+  end
+
+  def get_sorted_object_names(objects) do
+    Enum.map(objects, fn n -> n["name"] end)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  def get_market_orders(datasource, region_id, order_type, page) do
     url =
-      "orders/?datasource=" <>
-        datasource <> "&" <> "order_type=" <> order_type <> "&" <> "page=" <> to_string(page)
+      "orders/?" <>
+        Enum.join(
+          [
+            "datasource=" <> datasource,
+            "order_type=" <> order_type,
+            "page=" <> to_string(page)
+          ],
+          "&"
+        )
 
     url =
       Enum.join(
-        [@base_url, "markets", market_id, url],
+        [@base_url, "markets", region_id, url],
         "/"
       )
 
@@ -55,14 +93,10 @@ defmodule Mix.Tasks.EveOnline.GetUniverseNames do
     end
   end
 
-  def get_universe_names(market_orders) do
-    type_ids = Enum.uniq(Enum.map(market_orders, fn order -> order["type_id"] end))
+  def get_universe_names(datasource, type_ids) do
+    url = Enum.join([@base_url, "universe/names/?datasource=" <> datasource], "/")
 
-    body = Poison.encode!(type_ids)
-
-    url = Enum.join([@base_url, "universe/names/?datasource=tranquility"], "/")
-
-    case HTTPoison.post(url, body, [{"Content-type", "application/json"}], []) do
+    case HTTPoison.post(url, Poison.encode!(type_ids), [{"Content-type", "application/json"}], []) do
       {:ok, %{status_code: 200, body: market_response_body}} ->
         Poison.decode(market_response_body)
 
