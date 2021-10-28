@@ -54,6 +54,8 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
 
   def get_sorted_object_names(objects) do
     Enum.map(objects, fn n -> n["name"] end)
+    # is this optimal? With 1000 records its not problem, but with 1mill it might be
+    # sort first or distinct first? hmmm
     |> Enum.uniq()
     |> Enum.sort()
   end
