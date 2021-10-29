@@ -6,6 +6,7 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
   @type order_type :: String.t()
   @type page :: integer()
   @type api_response :: {:error, HTTPoison.Error.t()} | {:ok, HTTPoison.Response.t()}
+  @type either_list :: {:error, String.t()} | {:ok, list(map())}
 
   @base_url :"https://esi.evetech.net/latest"
 
@@ -80,8 +81,7 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
     |> Enum.uniq()
   end
 
-  @spec get_market_orders(datasource(), region_id(), order_type(), page()) ::
-          {:error, String.t()} | {:ok, list(map())}
+  @spec get_market_orders(datasource(), region_id(), order_type(), page()) :: either_list()
   def get_market_orders(datasource, region_id, order_type, page) do
     (to_string(@base_url) <>
        "/markets/" <>
@@ -92,15 +92,14 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
     |> handle("market")
   end
 
-  @spec get_universe_objects_by_type_ids(datasource(), list(integer())) ::
-          {:error, String.t()} | {:ok, list(map())}
+  @spec get_universe_objects_by_type_ids(datasource(), list(integer())) :: either_list()
   def get_universe_objects_by_type_ids(datasource, type_ids) do
     (to_string(@base_url) <> "/universe/names/?datasource=" <> datasource)
     |> HTTPoison.post(Poison.encode!(type_ids), [{"Content-type", "application/json"}], [])
     |> handle("universe")
   end
 
-  @spec handle(api_response(), String.t()) :: {:error, String.t()} | {:ok, list(map())}
+  @spec handle(api_response(), String.t()) :: either_list()
   def handle(result, type) do
     case result do
       {:ok, %{status_code: 200, body: body}} ->
