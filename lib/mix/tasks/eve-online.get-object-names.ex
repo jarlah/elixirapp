@@ -5,6 +5,7 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
   @type region_id :: integer()
   @type order_type :: String.t()
   @type page :: integer()
+  @type api_response :: {:error, HTTPoison.Error.t()} | {:ok, HTTPoison.Response.t()}
 
   @base_url :"https://esi.evetech.net/latest"
 
@@ -82,37 +83,25 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
   @spec get_market_orders(datasource(), region_id(), order_type(), page()) ::
           {:error, String.t()} | {:ok, list(map())}
   def get_market_orders(datasource, region_id, order_type, page) do
-    url =
-      "orders/?" <>
-        Enum.join(
-          [
-            "datasource=" <> datasource,
-            "order_type=" <> order_type,
-            "page=" <> to_string(page)
-          ],
-          "&"
-        )
-
-    url =
-      Enum.join(
-        [@base_url, "markets", region_id, url],
-        "/"
-      )
-
-    HTTPoison.get(url)
-    |> then(fn result -> process_http_response("market", result) end)
+    (to_string(@base_url) <>
+       "/markets/" <>
+       to_string(region_id) <>
+       "/orders/?" <>
+       "datasource=" <> datasource <> "&order_type=" <> order_type <> "&page=" <> to_string(page))
+    |> HTTPoison.get([])
+    |> handle("market")
   end
 
   @spec get_universe_objects_by_type_ids(datasource(), list(integer())) ::
           {:error, String.t()} | {:ok, list(map())}
   def get_universe_objects_by_type_ids(datasource, type_ids) do
-    url = Enum.join([@base_url, "universe/names/?datasource=" <> datasource], "/")
-
-    HTTPoison.post(url, Poison.encode!(type_ids), [{"Content-type", "application/json"}], [])
-    |> then(fn result -> process_http_response("universe", result) end)
+    (to_string(@base_url) <> "/universe/names/?datasource=" <> datasource)
+    |> HTTPoison.post(Poison.encode!(type_ids), [{"Content-type", "application/json"}], [])
+    |> handle("universe")
   end
 
-  def process_http_response(type, result) do
+  @spec handle(api_response(), String.t()) :: {:error, String.t()} | {:ok, list(map())}
+  def handle(result, type) do
     case result do
       {:ok, %{status_code: 200, body: body}} ->
         Poison.decode(body)
