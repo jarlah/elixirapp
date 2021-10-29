@@ -70,7 +70,7 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
   def safe_parse_integer(str) do
     case Integer.parse(str, 10) do
       {int, _} -> {:ok, int}
-      :error -> {:error, "Failed to parse str"}
+      :error -> {:error, "Failed to parse " <> str}
     end
   end
 
@@ -88,14 +88,14 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
        to_string(region_id) <>
        "/orders/?" <>
        "datasource=" <> datasource <> "&order_type=" <> order_type <> "&page=" <> to_string(page))
-    |> HTTPoison.get([])
+    |> HTTPoison.get()
     |> handle("market")
   end
 
   @spec get_universe_objects_by_type_ids(datasource(), list(integer())) :: either_list()
   def get_universe_objects_by_type_ids(datasource, type_ids) do
     (to_string(@base_url) <> "/universe/names/?datasource=" <> datasource)
-    |> HTTPoison.post(Poison.encode!(type_ids), [{"Content-type", "application/json"}], [])
+    |> HTTPoison.post(Poison.encode!(type_ids), [{"Content-type", "application/json"}])
     |> handle("universe")
   end
 
@@ -112,8 +112,8 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
            " endpoint: HTTP CODE " <>
            to_string(other) <> " -> " <> inspect(body)}
 
-      {:error, %HTTPoison.Error{:__exception__ => true, :id => nil, :reason => message}} ->
-        {:error, "Error contacting " <> type <> " endpoint: " <> message}
+      {:error, %{:reason => message}} ->
+        {:error, "Error contacting " <> type <> " endpoint: " <> inspect(message)}
     end
   end
 end
