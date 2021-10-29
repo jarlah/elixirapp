@@ -99,18 +99,8 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
         "/"
       )
 
-    case HTTPoison.get(url) do
-      {:ok, %{status_code: 200, body: market_response_body}} ->
-        Poison.decode(market_response_body)
-
-      {:ok, %{status_code: other, body: body}} ->
-        {:error,
-         "Error contacting market endpoint: HTTP CODE " <>
-           to_string(other) <> " -> " <> inspect(body)}
-
-      {:error, %HTTPoison.Error{:__exception__ => true, :id => nil, :reason => message}} ->
-        {:error, "Error contacting market endpoint: " <> message}
-    end
+    HTTPoison.get(url)
+    |> then(fn result -> process_http_response("market", result) end)
   end
 
   @spec get_universe_objects_by_type_ids(datasource(), list(integer())) ::
@@ -118,17 +108,24 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
   def get_universe_objects_by_type_ids(datasource, type_ids) do
     url = Enum.join([@base_url, "universe/names/?datasource=" <> datasource], "/")
 
-    case HTTPoison.post(url, Poison.encode!(type_ids), [{"Content-type", "application/json"}], []) do
-      {:ok, %{status_code: 200, body: market_response_body}} ->
-        Poison.decode(market_response_body)
+    HTTPoison.post(url, Poison.encode!(type_ids), [{"Content-type", "application/json"}], [])
+    |> then(fn result -> process_http_response("universe", result) end)
+  end
+
+  def process_http_response(type, result) do
+    case result do
+      {:ok, %{status_code: 200, body: body}} ->
+        Poison.decode(body)
 
       {:ok, %{status_code: other, body: body}} ->
         {:error,
-         "Error contacting universe endpoint: HTTP CODE " <>
+         "Error contacting " <>
+           type <>
+           " endpoint: HTTP CODE " <>
            to_string(other) <> " -> " <> inspect(body)}
 
       {:error, %HTTPoison.Error{:__exception__ => true, :id => nil, :reason => message}} ->
-        {:error, "Error contacting universe endpoint: " <> message}
+        {:error, "Error contacting " <> type <> " endpoint: " <> message}
     end
   end
 end
