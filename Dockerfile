@@ -18,4 +18,4 @@ RUN mix deps.get --force
 RUN mix do compile
 
 # If running this in kubernetes use env variables. Out of scope
-CMD ["mix","eve_online.get_object_names","datasource=tranquility","region_id=10000002","order_type=all"]
+CMD ["mix","eve_online.get_object_names","datasource=tranquility","region_id=10000002","order_type=all", "page=1"]
