@@ -94,7 +94,7 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
     |> handle("universe")
   end
 
-  @spec get_unique_object_names(list(map())) :: list(String.t())
+  @spec get_unique_object_names_sorted(list(map())) :: list(String.t())
   def get_unique_object_names_sorted(objects) do
     Enum.map(objects, fn n -> n["name"] end)
     |> Enum.uniq()
