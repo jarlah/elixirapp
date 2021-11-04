@@ -31,7 +31,7 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
                {:ok, orders} <- get_market_orders(datasource, region_id, order_type, page),
                type_ids <- get_unique_type_ids(orders),
                {:ok, objects} <- get_universe_objects_by_type_ids(datasource, type_ids),
-               object_names <- get_unique_object_names(objects) do
+               object_names <- get_unique_object_names_sorted(objects) do
             {:ok, object_names}
           end
 
@@ -95,7 +95,7 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
   end
 
   @spec get_unique_object_names(list(map())) :: list(String.t())
-  def get_unique_object_names(objects) do
+  def get_unique_object_names_sorted(objects) do
     Enum.map(objects, fn n -> n["name"] end)
     |> Enum.uniq()
     |> Enum.sort()
