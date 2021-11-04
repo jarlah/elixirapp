@@ -10,19 +10,14 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
 
   @base_url :"https://esi.evetech.net/latest"
 
-  # Can i change this task to fetch all? Collect all pages?
-  # i dont think I should do it because HTTPoison fetches the complete json
-  # and it would take up too much memory.
-  # Out of Scope
-  @default_page 1
-
   @impl Mix.Task
   def run(args) do
     case args do
       [
         "datasource" <> "=" <> datasource,
         "region_id" <> "=" <> region_id_str,
-        "order_type" <> "=" <> order_type
+        "order_type" <> "=" <> order_type,
+        "page" <> "=" <> page_str
       ] ->
         Application.ensure_all_started(:hackney)
 
@@ -32,16 +27,12 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
         # similar to for comprehension in scala
         response =
           with {:ok, region_id} <- safe_parse_integer(region_id_str),
-               {:ok, orders} <-
-                 get_market_orders(datasource, region_id, order_type, @default_page),
+               {:ok, page} <- safe_parse_integer(page_str),
+               {:ok, orders} <- get_market_orders(datasource, region_id, order_type, page),
                type_ids <- get_unique_type_ids(orders),
-               {:ok, objects} <- get_universe_objects_by_type_ids(datasource, type_ids) do
-            {:ok,
-             Enum.map(objects, fn n -> n["name"] end)
-             # is this optimal? With 1000 records its not problem, but with 1mill it might be
-             # sort first or distinct first? hmmm
-             |> Enum.uniq()
-             |> Enum.sort()}
+               {:ok, objects} <- get_universe_objects_by_type_ids(datasource, type_ids),
+               object_names <- get_unique_object_names(objects) do
+            {:ok, object_names}
           end
 
         case response do
@@ -83,20 +74,31 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
 
   @spec get_market_orders(datasource(), region_id(), order_type(), page()) :: either_list()
   def get_market_orders(datasource, region_id, order_type, page) do
-    (to_string(@base_url) <>
-       "/markets/" <>
-       to_string(region_id) <>
-       "/orders/?" <>
-       "datasource=" <> datasource <> "&order_type=" <> order_type <> "&page=" <> to_string(page))
-    |> HTTPoison.get()
+    (to_string(@base_url) <> "/markets/" <> to_string(region_id) <> "/orders")
+    |> HTTPoison.get([],
+      params: %{
+        datasource: datasource,
+        order_type: order_type,
+        page: page
+      }
+    )
     |> handle("market")
   end
 
   @spec get_universe_objects_by_type_ids(datasource(), list(integer())) :: either_list()
   def get_universe_objects_by_type_ids(datasource, type_ids) do
-    (to_string(@base_url) <> "/universe/names/?datasource=" <> datasource)
-    |> HTTPoison.post(Poison.encode!(type_ids), [{"Content-type", "application/json"}])
+    (to_string(@base_url) <> "/universe/names")
+    |> HTTPoison.post(Poison.encode!(type_ids), [{"Content-type", "application/json"}],
+      params: %{datasource: datasource}
+    )
     |> handle("universe")
+  end
+
+  @spec get_unique_object_names(list(map())) :: list(String.t())
+  def get_unique_object_names(objects) do
+    Enum.map(objects, fn n -> n["name"] end)
+    |> Enum.uniq()
+    |> Enum.sort()
   end
 
   @spec handle(api_response(), String.t()) :: either_list()
