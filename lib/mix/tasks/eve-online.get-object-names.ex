@@ -102,7 +102,7 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
 
   @spec handle(api_response(), String.t()) :: either_list()
   def handle(result, type) do
-    case(result) do
+    case result do
       {:ok, %{status_code: 200, body: body}} ->
         Poison.decode(body)
 
