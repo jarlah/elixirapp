@@ -7,6 +7,12 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
   @type page :: integer()
   @type api_response :: {:error, HTTPoison.Error.t()} | {:ok, HTTPoison.Response.t()}
   @type either_list :: {:error, String.t()} | {:ok, list(map())}
+  @spec handle(api_response(), String.t()) :: either_list()
+  @spec get_unique_object_names_sorted(list(map())) :: list(String.t())
+  @spec get_universe_objects_by_type_ids(datasource(), list(integer())) :: either_list()
+  @spec get_market_orders(datasource(), region_id(), order_type(), page()) :: either_list()
+  @spec get_unique_type_ids(list(map())) :: list(integer())
+  @spec safe_parse_integer(String.t()) :: {:error, String.t()} | {:ok, integer()}
 
   @base_url :"https://esi.evetech.net/latest"
 
@@ -57,7 +63,6 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
     end
   end
 
-  @spec safe_parse_integer(String.t()) :: {:error, String.t()} | {:ok, integer()}
   def safe_parse_integer(str) do
     case Integer.parse(str, 10) do
       {int, _} -> {:ok, int}
@@ -65,13 +70,11 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
     end
   end
 
-  @spec get_unique_type_ids(list(map())) :: list(integer())
   def get_unique_type_ids(orders),
     do:
       Enum.map(orders, fn order -> order["type_id"] end)
       |> Enum.uniq()
 
-  @spec get_market_orders(datasource(), region_id(), order_type(), page()) :: either_list()
   def get_market_orders(datasource, region_id, order_type, page),
     do:
       (to_string(@base_url) <> "/markets/" <> to_string(region_id) <> "/orders")
@@ -84,7 +87,6 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
       )
       |> handle("market")
 
-  @spec get_universe_objects_by_type_ids(datasource(), list(integer())) :: either_list()
   def get_universe_objects_by_type_ids(datasource, type_ids),
     do:
       (to_string(@base_url) <> "/universe/names")
@@ -93,28 +95,22 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
       )
       |> handle("universe")
 
-  @spec get_unique_object_names_sorted(list(map())) :: list(String.t())
   def get_unique_object_names_sorted(objects),
     do:
       Enum.map(objects, fn n -> n["name"] end)
       |> Enum.uniq()
       |> Enum.sort()
 
-  @spec handle(api_response(), String.t()) :: either_list()
-  def handle(result, type) do
-    case result do
-      {:ok, %{status_code: 200, body: body}} ->
-        Poison.decode(body)
+  def handle({:ok, %{status_code: 200, body: body}}, _), do: Poison.decode(body)
 
-      {:ok, %{status_code: other, body: body}} ->
-        {:error,
-         "Error contacting " <>
-           type <>
-           " endpoint: HTTP CODE " <>
-           to_string(other) <> " -> " <> inspect(body)}
+  def handle({:ok, %{status_code: other, body: body}}, type),
+    do:
+      {:error,
+       "Error contacting " <>
+         type <>
+         " endpoint: HTTP CODE " <>
+         to_string(other) <> " -> " <> inspect(body)}
 
-      {:error, %{:reason => message}} ->
-        {:error, "Error contacting " <> type <> " endpoint: " <> inspect(message)}
-    end
-  end
+  def handle({:error, %{:reason => message}}, type),
+    do: {:error, "Error contacting " <> type <> " endpoint: " <> inspect(message)}
 end
