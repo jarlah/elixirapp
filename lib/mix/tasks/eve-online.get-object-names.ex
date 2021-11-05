@@ -59,51 +59,50 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
 
   @spec safe_parse_integer(String.t()) :: {:error, String.t()} | {:ok, integer()}
   def safe_parse_integer(str) do
-    case Integer.parse(str, 10) do
+    case(Integer.parse(str, 10)) do
       {int, _} -> {:ok, int}
       :error -> {:error, "Failed to parse " <> str}
     end
   end
 
   @spec get_unique_type_ids(list(map())) :: list(integer())
-  def get_unique_type_ids(orders) do
-    # TODO should i trust that type_id is a number?
-    Enum.map(orders, fn order -> order["type_id"] end)
-    |> Enum.uniq()
-  end
+  def get_unique_type_ids(orders),
+    do:
+      Enum.map(orders, fn order -> order["type_id"] end)
+      |> Enum.uniq()
 
   @spec get_market_orders(datasource(), region_id(), order_type(), page()) :: either_list()
-  def get_market_orders(datasource, region_id, order_type, page) do
-    (to_string(@base_url) <> "/markets/" <> to_string(region_id) <> "/orders")
-    |> HTTPoison.get([],
-      params: %{
-        datasource: datasource,
-        order_type: order_type,
-        page: page
-      }
-    )
-    |> handle("market")
-  end
+  def get_market_orders(datasource, region_id, order_type, page),
+    do:
+      (to_string(@base_url) <> "/markets/" <> to_string(region_id) <> "/orders")
+      |> HTTPoison.get([],
+        params: %{
+          datasource: datasource,
+          order_type: order_type,
+          page: page
+        }
+      )
+      |> handle("market")
 
   @spec get_universe_objects_by_type_ids(datasource(), list(integer())) :: either_list()
-  def get_universe_objects_by_type_ids(datasource, type_ids) do
-    (to_string(@base_url) <> "/universe/names")
-    |> HTTPoison.post(Poison.encode!(type_ids), [{"Content-type", "application/json"}],
-      params: %{datasource: datasource}
-    )
-    |> handle("universe")
-  end
+  def get_universe_objects_by_type_ids(datasource, type_ids),
+    do:
+      (to_string(@base_url) <> "/universe/names")
+      |> HTTPoison.post(Poison.encode!(type_ids), [{"Content-type", "application/json"}],
+        params: %{datasource: datasource}
+      )
+      |> handle("universe")
 
   @spec get_unique_object_names_sorted(list(map())) :: list(String.t())
-  def get_unique_object_names_sorted(objects) do
-    Enum.map(objects, fn n -> n["name"] end)
-    |> Enum.uniq()
-    |> Enum.sort()
-  end
+  def get_unique_object_names_sorted(objects),
+    do:
+      Enum.map(objects, fn n -> n["name"] end)
+      |> Enum.uniq()
+      |> Enum.sort()
 
   @spec handle(api_response(), String.t()) :: either_list()
   def handle(result, type) do
-    case result do
+    case(result) do
       {:ok, %{status_code: 200, body: body}} ->
         Poison.decode(body)
 
