@@ -59,7 +59,7 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
 
   @spec safe_parse_integer(String.t()) :: {:error, String.t()} | {:ok, integer()}
   def safe_parse_integer(str) do
-    case(Integer.parse(str, 10)) do
+    case Integer.parse(str, 10) do
       {int, _} -> {:ok, int}
       :error -> {:error, "Failed to parse " <> str}
     end
