@@ -13,6 +13,7 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
   @spec get_market_orders(datasource(), region_id(), order_type(), page()) :: either_list()
   @spec get_unique_type_ids(list(map())) :: list(integer())
   @spec safe_parse_integer(String.t()) :: {:error, String.t()} | {:ok, integer()}
+  @spec print_result({:error, String.t()} | {:ok, list(String.t())}) :: any()
 
   @base_url :"https://esi.evetech.net/latest"
 
@@ -20,40 +21,22 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
   def run(args) do
     case args do
       [
-        "datasource" <> "=" <> datasource,
-        "region_id" <> "=" <> region_id_str,
-        "order_type" <> "=" <> order_type,
-        "page" <> "=" <> page_str
+        "datasource=" <> datasource,
+        "region_id=" <> region_id_str,
+        "order_type=" <> order_type,
+        "page=" <> page_str
       ] ->
         Application.ensure_all_started(:hackney)
 
-        Mix.shell().info("Program start")
-
-        # Either monad! xD
-        # similar to for comprehension in scala
-        response =
-          with {:ok, region_id} <- safe_parse_integer(region_id_str),
-               {:ok, page} <- safe_parse_integer(page_str),
-               {:ok, orders} <- get_market_orders(datasource, region_id, order_type, page),
-               type_ids <- get_unique_type_ids(orders),
-               {:ok, objects} <- get_universe_objects_by_type_ids(datasource, type_ids),
-               object_names <- get_unique_object_names_sorted(objects) do
-            {:ok, object_names}
-          end
-
-        case response do
-          {:ok, sorted_object_names} ->
-            Enum.each(sorted_object_names, fn o -> Mix.shell().info(o) end)
-
-            Mix.shell().info(
-              "Found " <> to_string(length(sorted_object_names)) <> " unique object names"
-            )
-
-          {:error, message} ->
-            Mix.shell().error("Error occured: " <> inspect(message))
+        with {:ok, region_id} <- safe_parse_integer(region_id_str),
+             {:ok, page} <- safe_parse_integer(page_str),
+             {:ok, orders} <- get_market_orders(datasource, region_id, order_type, page),
+             type_ids <- get_unique_type_ids(orders),
+             {:ok, objects} <- get_universe_objects_by_type_ids(datasource, type_ids),
+             object_names <- get_unique_object_names_sorted(objects) do
+          {:ok, object_names}
         end
-
-        Mix.shell().info("Program end")
+        |> print_result()
 
       other ->
         Mix.shell().error(
@@ -61,6 +44,14 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
             "Provided: " <> inspect(other)
         )
     end
+  end
+
+  def print_result({:error, message}),
+    do: Mix.shell().error("Error occured: " <> inspect(message))
+
+  def print_result({:ok, names}) do
+    Enum.each(names, fn n -> Mix.shell().info(n) end)
+    Mix.shell().info("Found " <> to_string(length(names)) <> " unique object names")
   end
 
   def safe_parse_integer(str) do
@@ -101,6 +92,9 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
       |> Enum.uniq()
       |> Enum.sort()
 
+  def handle({:error, %{:reason => message}}, type),
+    do: {:error, "Error contacting " <> type <> " endpoint: " <> inspect(message)}
+
   def handle({:ok, %{status_code: 200, body: body}}, _), do: Poison.decode(body)
 
   def handle({:ok, %{status_code: other, body: body}}, type),
@@ -110,7 +104,4 @@ defmodule Mix.Tasks.EveOnline.GetObjectNames do
          type <>
          " endpoint: HTTP CODE " <>
          to_string(other) <> " -> " <> inspect(body)}
-
-  def handle({:error, %{:reason => message}}, type),
-    do: {:error, "Error contacting " <> type <> " endpoint: " <> inspect(message)}
 end
